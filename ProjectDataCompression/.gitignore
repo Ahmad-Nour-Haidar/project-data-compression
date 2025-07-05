@@ -1,0 +1,43 @@
+# Build results
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code settings
+.vscode/
+
+# Backup & temporary files
+*.bak
+*.tmp
+*.log
+
+# NuGet packages
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+
+# Dotnet CLI
+*.dbmdl
+*.dotCover
+
+# JetBrains Rider IDE
+.idea/
+
+# Windows thumbnail cache
+Thumbs.db
+
+# Resharper
+_ReSharper*/
+*.DotSettings.user
+
+# Local history for JetBrains IDEs
+.localhistory/
+
+# Test Results
+TestResults/
