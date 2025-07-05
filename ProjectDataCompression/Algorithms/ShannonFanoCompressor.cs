@@ -1,4 +1,5 @@
 // File: ShannonFanoCompressor.cs 
+
 using System.Diagnostics;
 using ProjectDataCompression.Models;
 
@@ -31,6 +32,7 @@ public class ShannonFanoCompressor
             return;
         }
 
+        // Total is the sum of current sub list
         int total = symbols.Skip(start).Take(end - start + 1).Sum(x => x.freq);
         int split = start, leftSum = 0;
 
@@ -88,7 +90,6 @@ public class ShannonFanoCompressor
 
                 var progress = (i * 100 / bitString.Length);
                 ProgressChanged?.Invoke(progress);
-                Thread.Sleep(1);
             }
 
             output.Write(compressedBytes.ToArray());
@@ -136,7 +137,10 @@ public class ShannonFanoCompressor
 
             List<byte> compressed = new();
             while (input.BaseStream.Position < input.BaseStream.Length)
+            {
                 compressed.Add(input.ReadByte());
+            }
+
 
             string bitString = string.Join("", compressed.Select(b => Convert.ToString(b, 2).PadLeft(8, '0')));
             List<byte> outputData = new();
@@ -156,7 +160,6 @@ public class ShannonFanoCompressor
 
                 var progress = (i * 100 / bitString.Length);
                 ProgressChanged?.Invoke(progress);
-                Thread.Sleep(1);
             }
 
             File.WriteAllBytes(outputPath, outputData.ToArray());

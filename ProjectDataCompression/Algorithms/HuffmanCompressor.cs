@@ -1,4 +1,5 @@
 // File: HuffmanCompressor.cs 
+
 using System.Diagnostics;
 using ProjectDataCompression.Models;
 
@@ -46,7 +47,7 @@ public class HuffmanCompressor
         return pq.Dequeue();
     }
 
-    private void BuildCodes(Node node, string code)
+    private void BuildCodes(Node? node, string code)
     {
         if (node == null) return;
         if (node.IsLeaf)
@@ -95,7 +96,6 @@ public class HuffmanCompressor
 
                 var progress = (i * 100 / bitString.Length);
                 ProgressChanged?.Invoke(progress);
-                Thread.Sleep(1);
             }
 
             output.Write(compressedBytes.ToArray());
@@ -138,7 +138,10 @@ public class HuffmanCompressor
             Node root = BuildTree(frequencies);
             List<byte> compressed = new();
             while (input.BaseStream.Position < input.BaseStream.Length)
+            {
                 compressed.Add(input.ReadByte());
+            }
+
 
             string bitString = string.Join("", compressed.Select(b => Convert.ToString(b, 2).PadLeft(8, '0')));
             List<byte> outputData = new();
@@ -158,7 +161,6 @@ public class HuffmanCompressor
 
                 var progress = (i * 100 / bitString.Length);
                 ProgressChanged?.Invoke(progress);
-                Thread.Sleep(1);
             }
 
             File.WriteAllBytes(outputPath, outputData.ToArray());

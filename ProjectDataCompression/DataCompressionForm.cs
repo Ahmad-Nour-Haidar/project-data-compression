@@ -1,4 +1,6 @@
 // File: DataCompressionForm.cs 
+
+using System.Media;
 using ProjectDataCompression.Algorithms;
 using ProjectDataCompression.Enums;
 using ProjectDataCompression.Models;
@@ -7,10 +9,11 @@ namespace ProjectDataCompression;
 
 public partial class DataCompressionForm : Form
 {
-    private HuffmanCompressor _huffman = new();
-    private ShannonFanoCompressor _shannon = new();
+    private HuffmanCompressor? _huffman;
+    private ShannonFanoCompressor? _shannon;
 
-    private Button btnSelectFile;
+    private Button btnSelectFileAny;
+    private Button btnSelectCompressedFile;
     private TextBox txtInputPath;
     private ComboBox comboBoxAlgorithm;
     private Button btnCompress;
@@ -24,70 +27,109 @@ public partial class DataCompressionForm : Form
     private Label lblHuffmanProgress;
     private Label lblShannonProgress;
 
-    private CancellationTokenSource _cts;
-    private ManualResetEventSlim _pauseEvent = new(true);
+    // private CancellationTokenSource _cts;
+    // private ManualResetEventSlim _pauseEvent = new(true);
 
     public DataCompressionForm()
     {
         InitializeComponent();
         InitComponent();
         comboBoxAlgorithm.DataSource = Enum.GetValues(typeof(CompressorType));
+        SetProgressBar();
+        btnPause.Enabled = false;
+        btnResume.Enabled = false;
+        btnCancel.Enabled = false;
+        btnCompress.Enabled = false;
+        btnDecompress.Enabled = false;
+    }
 
-        _huffman.ProgressChanged += p =>
+    private void SetProgressBar()
+    {
+        if (_huffman != null)
         {
-            progressBarHuffman.Invoke(() =>
+            _huffman.ProgressChanged += p =>
             {
-                progressBarHuffman.Value = p;
-                lblHuffmanProgress.Text = $"Huffman: {p}%";
-            });
-        };
+                progressBarHuffman.Invoke(() =>
+                {
+                    progressBarHuffman.Value = p;
+                    lblHuffmanProgress.Text = $"Huffman: {p}%";
+                });
+            };
+        }
 
-        _shannon.ProgressChanged += p =>
+        if (_shannon != null)
         {
-            progressBarShannon.Invoke(() =>
+            _shannon.ProgressChanged += p =>
             {
-                progressBarShannon.Value = p;
-                lblShannonProgress.Text = $"Shannon-Fano: {p}%";
-            });
-        };
+                progressBarShannon.Invoke(() =>
+                {
+                    progressBarShannon.Value = p;
+                    lblShannonProgress.Text = $"Shannon-Fano: {p}%";
+                });
+            };
+        }
     }
 
     private void SetControlsEnabled(bool enabled)
     {
         btnCompress.Enabled = enabled;
-        btnSelectFile.Enabled = enabled;
+        btnSelectFileAny.Enabled = enabled;
+        btnSelectCompressedFile.Enabled = enabled;
         comboBoxAlgorithm.Enabled = enabled;
         btnDecompress.Enabled = enabled;
         btnPause.Enabled = !enabled;
         btnResume.Enabled = !enabled;
         btnCancel.Enabled = !enabled;
     }
-    
-    private void btnSelectFile_Click(object sender, EventArgs e)
+
+    private void btnSelectFileAny_Click(object sender, EventArgs e)
     {
-        using OpenFileDialog ofd = new OpenFileDialog();
-        ofd.Filter = "Text files (*.txt)|*.txt|Compressed files (*.compress)|*.compress|All files (*.*)|*.*";
-        ofd.Title = "Select a file to compress or decompress";
+        OpenFileDialog ofd = new OpenFileDialog();
+        ofd.Filter =
+            "Common Files|*.txt;*.docx;*.pdf;*.png;*.jpg;*.jpeg;*.bmp;*.mp3;*.mp4;*.avi;*.csv;*.xlsx;*.json;*.xml|All Files (*.*)|*.*";
 
         if (ofd.ShowDialog() == DialogResult.OK)
         {
             txtInputPath.Text = ofd.FileName;
+            btnCompress.Enabled = true;
+        }
+        else
+        {
+            // Play sound if a user cancels
+            SystemSounds.Hand.Play(); 
         }
     }
+
+    private void btnSelectCompressedFile_Click(object sender, EventArgs e)
+    {
+        OpenFileDialog ofd = new OpenFileDialog();
+        ofd.Filter = "Compressed Files (*.compress)|*.compress";
+        if (ofd.ShowDialog() == DialogResult.OK)
+        {
+            txtInputPath.Text = ofd.FileName;
+            btnDecompress.Enabled = true;
+        }
+        else
+        {
+            SystemSounds.Exclamation.Play();
+        }
+    }
+
 
     private async void btnCompress_Click(object sender, EventArgs e)
     {
         string inputPath = txtInputPath.Text;
         if (!File.Exists(inputPath))
         {
+            SystemSounds.Hand.Play();
             MessageBox.Show("Invalid file path.");
             return;
         }
 
-        _cts = new();
-        _pauseEvent.Set();
-
         SetControlsEnabled(false);
+        btnPause.Enabled = true;
+        btnResume.Enabled = false;
+        btnCancel.Enabled = true;
         string fileName = Path.GetFileNameWithoutExtension(inputPath);
         string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         CompressorType selected = (CompressorType)comboBoxAlgorithm.SelectedItem;
@@ -103,6 +145,8 @@ public partial class DataCompressionForm : Form
             if (selected == CompressorType.Huffman || selected == CompressorType.Both)
             {
                 string outHuffman = Path.Combine(desktop, fileName + "_compressed_huffman.compress");
+                _huffman = new();
+                SetProgressBar();
                 CompressionResult res = await _huffman.CompressAsync(inputPath, outHuffman);
                 DisplayResult(res, "Huffman");
             }
@@ -110,11 +154,15 @@ public partial class DataCompressionForm : Form
             if (selected == CompressorType.ShannonFano || selected == CompressorType.Both)
             {
                 string outShannon = Path.Combine(desktop, fileName + "_compressed_shannon.compress");
+                _shannon = new();
+                SetProgressBar();
                 CompressionResult res = await _shannon.CompressAsync(inputPath, outShannon);
                 DisplayResult(res, "Shannon-Fano");
             }
 
-            System.Media.SystemSounds.Exclamation.Play();
+            _huffman = null;
+            _shannon = null;
+            SystemSounds.Exclamation.Play();
             MessageBox.Show("Compression finished!", "Done");
         }
         catch (OperationCanceledException)
@@ -134,12 +182,14 @@ public partial class DataCompressionForm : Form
         string inputPath = txtInputPath.Text;
         if (!File.Exists(inputPath) || Path.GetExtension(inputPath) != ".compress")
         {
+            SystemSounds.Hand.Play();
             MessageBox.Show("Please select a valid .compress file.");
             return;
         }
 
         SetControlsEnabled(false);
-        string fileName = Path.GetFileNameWithoutExtension(inputPath).Replace("_compressed_huffman", "").Replace("_compressed_shannon", "");
+        string fileName = Path.GetFileNameWithoutExtension(inputPath).Replace("_compressed_huffman", "")
+            .Replace("_compressed_shannon", "");
         string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         string outputPath = Path.Combine(desktop, fileName + "_decompressed.txt");
 
@@ -159,6 +209,7 @@ public partial class DataCompressionForm : Form
             {
                 MessageBox.Show("Unknown compression type.");
             }
+
             System.Media.SystemSounds.Asterisk.Play();
         }
         finally
@@ -171,9 +222,37 @@ public partial class DataCompressionForm : Form
         }
     }
 
-    private void btnPause_Click(object sender, EventArgs e) => _pauseEvent.Reset();
-    private void btnResume_Click(object sender, EventArgs e) => _pauseEvent.Set();
-    private void btnCancel_Click(object sender, EventArgs e) => _cts?.Cancel();
+    private void btnPause_Click(object sender, EventArgs e)
+    {
+        btnPause.Enabled = false;
+        btnResume.Enabled = true;
+        _huffman?.Pause();
+        _shannon?.Pause();
+    }
+
+    private void btnResume_Click(object sender, EventArgs e)
+    {
+        btnPause.Enabled = true;
+        btnResume.Enabled = false;
+        _huffman?.Resume();
+        _shannon?.Resume();
+    }
+
+    private void btnCancel_Click(object sender, EventArgs e)
+    {
+        btnPause.Enabled = false;
+        btnResume.Enabled = false;
+        btnCancel.Enabled = false;
+        _huffman?.Cancel();
+        _shannon?.Cancel();
+        _huffman = null;
+        _shannon = null;
+        progressBarHuffman.Value = 0;
+        lblHuffmanProgress.Text = "Huffman: 0%";
+        progressBarShannon.Value = 0;
+        lblShannonProgress.Text = "Shannon-Fano: 0%";
+        System.Media.SystemSounds.Hand.Play();
+    }
 
     private void DisplayResult(CompressionResult result, string label)
     {
@@ -187,42 +266,80 @@ public partial class DataCompressionForm : Form
 
     private void InitComponent()
     {
-        btnSelectFile = new(); txtInputPath = new(); comboBoxAlgorithm = new();
-        btnCompress = new(); btnDecompress = new(); listBoxResults = new();
-        progressBarHuffman = new(); progressBarShannon = new();
-        btnPause = new(); btnResume = new(); btnCancel = new();
-        lblHuffmanProgress = new(); lblShannonProgress = new();
+        btnSelectFileAny = new();
+        btnSelectCompressedFile = new();
+        txtInputPath = new();
+        comboBoxAlgorithm = new();
+        btnCompress = new();
+        btnDecompress = new();
+        listBoxResults = new();
+        progressBarHuffman = new();
+        progressBarShannon = new();
+        btnPause = new();
+        btnResume = new();
+        btnCancel = new();
+        lblHuffmanProgress = new();
+        lblShannonProgress = new();
 
         SuspendLayout();
 
-        btnSelectFile.SetBounds(20, 20, 100, 30);
-        btnSelectFile.Text = "Select File";
-        btnSelectFile.Click += btnSelectFile_Click;
+        // btnSelectFileAny
+        btnSelectFileAny = new Button();
+        btnSelectFileAny.Location = new Point(20, 20);
+        btnSelectFileAny.Size = new Size(120, 30);
+        btnSelectFileAny.Text = "Select File";
+        btnSelectFileAny.Click += btnSelectFileAny_Click;
+        Controls.Add(btnSelectFileAny);
 
-        txtInputPath.SetBounds(130, 25, 400, 20); txtInputPath.ReadOnly = true;
+        // btnSelectCompressedFile
+        btnSelectCompressedFile = new Button();
+        btnSelectCompressedFile.Location = new Point(150, 20);
+        btnSelectCompressedFile.Size = new Size(160, 30);
+        btnSelectCompressedFile.Text = "Select .compress File";
+        btnSelectCompressedFile.Click += btnSelectCompressedFile_Click;
+        Controls.Add(btnSelectCompressedFile);
+
+        txtInputPath.Location = new(320, 20);
+        txtInputPath.ReadOnly = true;
+        txtInputPath.AutoSize = true;
+        txtInputPath.Size = new(400, 20);
 
         comboBoxAlgorithm.SetBounds(20, 70, 150, 20);
 
-        btnCompress.SetBounds(200, 70, 100, 30); btnCompress.Text = "Compress"; btnCompress.Click += btnCompress_Click;
-        btnDecompress.SetBounds(320, 70, 100, 30); btnDecompress.Text = "Decompress"; btnDecompress.Click += btnDecompress_Click;
+        btnCompress.SetBounds(200, 70, 100, 30);
+        btnCompress.Text = "Compress";
+        btnCompress.Click += btnCompress_Click;
+        btnDecompress.SetBounds(320, 70, 100, 30);
+        btnDecompress.Text = "Decompress";
+        btnDecompress.Click += btnDecompress_Click;
 
-        btnPause.SetBounds(430, 70, 60, 30); btnPause.Text = "Pause"; btnPause.Click += btnPause_Click;
-        btnResume.SetBounds(500, 70, 60, 30); btnResume.Text = "Resume"; btnResume.Click += btnResume_Click;
-        btnCancel.SetBounds(570, 70, 60, 30); btnCancel.Text = "Cancel"; btnCancel.Click += btnCancel_Click;
+        btnPause.SetBounds(430, 70, 60, 30);
+        btnPause.Text = "Pause";
+        btnPause.Click += btnPause_Click;
+        btnResume.SetBounds(500, 70, 60, 30);
+        btnResume.Text = "Resume";
+        btnResume.Click += btnResume_Click;
+        btnCancel.SetBounds(570, 70, 60, 30);
+        btnCancel.Text = "Cancel";
+        btnCancel.Click += btnCancel_Click;
 
-        lblHuffmanProgress.SetBounds(20, 100, 250, 15); lblHuffmanProgress.Text = "Huffman: 0%";
-        progressBarHuffman.SetBounds(20, 120, 610, 15);
+        lblHuffmanProgress.SetBounds(20, 100, 250, 20);
+        lblHuffmanProgress.Text = "Huffman: 0%";
+        progressBarHuffman.SetBounds(20, 120, 610, 20);
 
-        lblShannonProgress.SetBounds(20, 145, 250, 15); lblShannonProgress.Text = "Shannon-Fano: 0%";
-        progressBarShannon.SetBounds(20, 165, 610, 15);
+        lblShannonProgress.SetBounds(20, 155, 250, 20);
+        lblShannonProgress.Text = "Shannon-Fano: 0%";
+        progressBarShannon.SetBounds(20, 175, 610, 20);
 
-        listBoxResults.SetBounds(20, 190, 610, 170);
+        listBoxResults.SetBounds(20, 220, 610, 400);
 
-        ClientSize = new Size(660, 380);
-        Controls.AddRange([btnSelectFile, txtInputPath, comboBoxAlgorithm,
-            btnCompress, btnDecompress, btnPause, btnResume, btnCancel,
-            lblHuffmanProgress, progressBarHuffman, lblShannonProgress, progressBarShannon, listBoxResults]);
+        ClientSize = new Size(880, 660);
+        Controls.AddRange(btnSelectFileAny, btnSelectCompressedFile, txtInputPath, comboBoxAlgorithm, btnCompress,
+            btnDecompress, btnPause,
+            btnResume, btnCancel, lblHuffmanProgress, progressBarHuffman, lblShannonProgress, progressBarShannon,
+            listBoxResults);
         Text = "File Compressor - Huffman & Shannon-Fano";
-        ResumeLayout(false); PerformLayout();
+        ResumeLayout(false);
+        PerformLayout();
     }
 }
