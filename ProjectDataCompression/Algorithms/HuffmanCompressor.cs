@@ -1,6 +1,8 @@
 // File: HuffmanCompressor.cs 
 
 using System.Diagnostics;
+using ProjectDataCompression.Enums;
+using ProjectDataCompression.Functions;
 using ProjectDataCompression.Models;
 
 namespace ProjectDataCompression.Algorithms;
@@ -30,6 +32,8 @@ public class HuffmanCompressor
     public event Action<int> ProgressChanged;
     public event Action<string> StatusChanged;
 
+    public Func<string?>? RequestPassword;
+
     private Node BuildTree(Dictionary<byte, int> frequencies)
     {
         var pq = new PriorityQueue<Node, int>();
@@ -51,7 +55,9 @@ public class HuffmanCompressor
     {
         if (node == null) return;
         if (node.IsLeaf)
+        {
             _codes[node.Symbol] = code;
+        }
         else
         {
             BuildCodes(node.Left, code + "0");
@@ -59,7 +65,7 @@ public class HuffmanCompressor
         }
     }
 
-    public async Task<CompressionResult> CompressAsync(string inputPath, string outputPath)
+    public async Task<CompressionResult> CompressAsync(string inputPath, string outputPath, string? password)
     {
         _cts = new CancellationTokenSource();
         _codes = new();
@@ -77,6 +83,17 @@ public class HuffmanCompressor
 
             using var output = new BinaryWriter(File.Create(outputPath));
 
+            // --- Save Metadata ---
+            string algorithm = nameof(CompressorType.Huffman);
+            string originalExtension = Path.GetExtension(inputPath);
+            output.Write(algorithm);
+            output.Write(originalExtension);
+
+            // --- Write Password Hash (or empty string) ---
+            string passwordHash = string.IsNullOrWhiteSpace(password) ? "" : ComputeSha256Hash.Make(password);
+            output.Write(passwordHash);
+
+            // --- Frequency Table ---
             output.Write(frequencies.Count);
             foreach (var kvp in frequencies)
             {
@@ -84,6 +101,7 @@ public class HuffmanCompressor
                 output.Write(kvp.Value);
             }
 
+            // --- Compress Data ---
             string bitString = string.Join("", inputData.Select(b => _codes[b]));
             List<byte> compressedBytes = new();
             for (int i = 0; i < bitString.Length; i += 8)
@@ -99,7 +117,7 @@ public class HuffmanCompressor
             }
 
             output.Write(compressedBytes.ToArray());
-            output.Write(bitString.Length); // Important for accurate decompression
+            output.Write(bitString.Length);
 
             StatusChanged?.Invoke("Huffman Compression Complete.");
             ProgressChanged?.Invoke(100);
@@ -115,17 +133,42 @@ public class HuffmanCompressor
         };
     }
 
-
-    public async Task DecompressAsync(string inputPath, string outputPath)
+    public async Task<string> DecompressAsync(string inputPath)
     {
         _cts = new CancellationTokenSource();
         StatusChanged?.Invoke("Starting Huffman Decompression...");
 
-        await Task.Run(() =>
+        return await Task.Run(() =>
         {
             var token = _cts.Token;
             using var input = new BinaryReader(File.OpenRead(inputPath));
 
+            // --- Read Metadata ---
+            string algorithm = input.ReadString();
+            string originalExtension = input.ReadString();
+
+            string savedPasswordHash = input.ReadString();
+
+            // --- Request Password if Needed ---
+            if (!string.IsNullOrWhiteSpace(savedPasswordHash))
+            {
+                String enteredPassword = PasswordDialog.RequestPassword("Please enter your password:");
+                if (string.IsNullOrWhiteSpace(enteredPassword))
+                {
+                    throw new UnauthorizedAccessException("Password is required to decompress this file.");
+                    // MessageBox.Show("Password is required to decompress this file.", "Password required");
+                    // return "";
+                }
+
+                string enteredHash = ComputeSha256Hash.Make(enteredPassword);
+                if (enteredHash != savedPasswordHash)
+                {
+                    throw new UnauthorizedAccessException("Incorrect password.");
+                    // MessageBox.Show("Incorrect password.", "Incorrect password.");
+                }
+            }
+
+            // --- Read Frequency Table ---
             int freqCount = input.ReadInt32();
             var frequencies = new Dictionary<byte, int>();
             for (int i = 0; i < freqCount; i++)
@@ -137,13 +180,15 @@ public class HuffmanCompressor
 
             Node root = BuildTree(frequencies);
             List<byte> compressed = new();
-            while (input.BaseStream.Position < input.BaseStream.Length)
+            while (input.BaseStream.Position < input.BaseStream.Length - sizeof(int))
             {
                 compressed.Add(input.ReadByte());
             }
 
-
+            int bitLength = input.ReadInt32();
             string bitString = string.Join("", compressed.Select(b => Convert.ToString(b, 2).PadLeft(8, '0')));
+            bitString = bitString.Substring(0, bitLength);
+
             List<byte> outputData = new();
             Node current = root;
 
@@ -163,9 +208,16 @@ public class HuffmanCompressor
                 ProgressChanged?.Invoke(progress);
             }
 
-            File.WriteAllBytes(outputPath, outputData.ToArray());
+            string decompressedPath = Path.Combine(
+                Path.GetDirectoryName(inputPath)!,
+                Path.GetFileNameWithoutExtension(inputPath) + "_decompressed" + originalExtension
+            );
+
+            File.WriteAllBytes(decompressedPath, outputData.ToArray());
             StatusChanged?.Invoke("Huffman Decompression Complete.");
             ProgressChanged?.Invoke(100);
+
+            return decompressedPath;
         }, _cts.Token);
     }
 

@@ -15,6 +15,7 @@ public partial class DataCompressionForm : Form
     private Button btnSelectFileAny;
     private Button btnSelectCompressedFile;
     private TextBox txtInputPath;
+    private TextBox txtInputPassword;
     private ComboBox comboBoxAlgorithm;
     private Button btnCompress;
     private Button btnDecompress;
@@ -96,7 +97,7 @@ public partial class DataCompressionForm : Form
         else
         {
             // Play sound if a user cancels
-            SystemSounds.Hand.Play(); 
+            SystemSounds.Hand.Play();
         }
     }
 
@@ -108,10 +109,6 @@ public partial class DataCompressionForm : Form
         {
             txtInputPath.Text = ofd.FileName;
             btnDecompress.Enabled = true;
-        }
-        else
-        {
-            SystemSounds.Exclamation.Play();
         }
     }
 
@@ -144,19 +141,19 @@ public partial class DataCompressionForm : Form
         {
             if (selected == CompressorType.Huffman || selected == CompressorType.Both)
             {
-                string outHuffman = Path.Combine(desktop, fileName + "_compressed_huffman.compress");
+                string outHuffman = Path.Combine(desktop, fileName + "_compressed.compress");
                 _huffman = new();
                 SetProgressBar();
-                CompressionResult res = await _huffman.CompressAsync(inputPath, outHuffman);
+                CompressionResult res = await _huffman.CompressAsync(inputPath, outHuffman, txtInputPassword.Text);
                 DisplayResult(res, "Huffman");
             }
 
             if (selected == CompressorType.ShannonFano || selected == CompressorType.Both)
             {
-                string outShannon = Path.Combine(desktop, fileName + "_compressed_shannon.compress");
+                string outShannon = Path.Combine(desktop, fileName + "_compressed.compress");
                 _shannon = new();
                 SetProgressBar();
-                CompressionResult res = await _shannon.CompressAsync(inputPath, outShannon);
+                CompressionResult res = await _shannon.CompressAsync(inputPath, outShannon, txtInputPassword.Text);
                 DisplayResult(res, "Shannon-Fano");
             }
 
@@ -188,29 +185,33 @@ public partial class DataCompressionForm : Form
         }
 
         SetControlsEnabled(false);
-        string fileName = Path.GetFileNameWithoutExtension(inputPath).Replace("_compressed_huffman", "")
-            .Replace("_compressed_shannon", "");
-        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        string outputPath = Path.Combine(desktop, fileName + "_decompressed.txt");
-
         try
         {
-            if (inputPath.Contains("huffman"))
+            var algorithm = GetAlgorithmNameFromCompressedFile(inputPath);
+            if (algorithm == CompressorType.Huffman)
             {
-                await _huffman.DecompressAsync(inputPath, outputPath);
+                _huffman = new();
+                SetProgressBar();
+                await _huffman.DecompressAsync(inputPath);
+                SystemSounds.Asterisk.Play();
                 MessageBox.Show("Huffman decompression completed.", "Done");
             }
-            else if (inputPath.Contains("shannon"))
+            else if (algorithm == CompressorType.ShannonFano)
             {
-                await _shannon.DecompressAsync(inputPath, outputPath);
+                _shannon = new();
+                SetProgressBar();
+                await _shannon.DecompressAsync(inputPath);
+                SystemSounds.Asterisk.Play();
                 MessageBox.Show("Shannon-Fano decompression completed.", "Done");
             }
             else
             {
                 MessageBox.Show("Unknown compression type.");
             }
-
-            System.Media.SystemSounds.Asterisk.Play();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MessageBox.Show(ex.Message, "Unauthorized Access", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
@@ -299,7 +300,17 @@ public partial class DataCompressionForm : Form
         btnSelectCompressedFile.Click += btnSelectCompressedFile_Click;
         Controls.Add(btnSelectCompressedFile);
 
-        txtInputPath.Location = new(320, 20);
+        txtInputPassword = new TextBox
+        {
+            Location = new Point(320, 20),
+            Size = new Size(120, 30),
+            PlaceholderText = "Password",
+            AutoSize = true,
+            ReadOnly = false,
+            Enabled = true,
+        };
+
+        txtInputPath.Location = new(450, 20);
         txtInputPath.ReadOnly = true;
         txtInputPath.AutoSize = true;
         txtInputPath.Size = new(400, 20);
@@ -337,9 +348,35 @@ public partial class DataCompressionForm : Form
         Controls.AddRange(btnSelectFileAny, btnSelectCompressedFile, txtInputPath, comboBoxAlgorithm, btnCompress,
             btnDecompress, btnPause,
             btnResume, btnCancel, lblHuffmanProgress, progressBarHuffman, lblShannonProgress, progressBarShannon,
-            listBoxResults);
+            listBoxResults, txtInputPassword);
+
         Text = "File Compressor - Huffman & Shannon-Fano";
+
         ResumeLayout(false);
         PerformLayout();
+    }
+
+    private static CompressorType? GetAlgorithmNameFromCompressedFile(string inputPath)
+    {
+        if (!File.Exists(inputPath))
+        {
+            throw new FileNotFoundException("File does not exist.", inputPath);
+        }
+
+        using var reader = new BinaryReader(File.OpenRead(inputPath));
+        string algorithm = reader.ReadString();
+
+
+        if (algorithm == nameof(CompressorType.Huffman))
+        {
+            return CompressorType.Huffman;
+        }
+
+        if (algorithm == nameof(CompressorType.ShannonFano))
+        {
+            return CompressorType.ShannonFano;
+        }
+
+        return null;
     }
 }
