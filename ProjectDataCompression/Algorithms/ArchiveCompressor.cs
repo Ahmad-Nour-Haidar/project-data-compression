@@ -23,8 +23,8 @@ public class ArchiveCompressor
         CompressorType algorithm = CompressorType.Huffman)
     {
         var stopwatch = Stopwatch.StartNew();
+
         long totalOriginalSize = 0;
-        int totalFiles = inputPaths.Length;
 
         var metadata = new ArchiveMetadata
         {
@@ -32,64 +32,48 @@ public class ArchiveCompressor
             PasswordHash = string.IsNullOrWhiteSpace(password) ? "" : ComputeSha256Hash.Make(password)
         };
 
+        var compressedResults = await Task.WhenAll(
+            inputPaths.Select((path, index) => Task.Run(async () =>
+            {
+                var fileInfo = new FileInfo(path);
+                var fileData = File.ReadAllBytes(path);
+                var frequencies = fileData.GroupBy(b => b).ToDictionary(g => g.Key, g => g.Count());
+
+                byte[] compressed = algorithm switch
+                {
+                    CompressorType.Huffman => await _huffmanCompressor.CompressWithHuffman(fileData, frequencies),
+                    CompressorType.ShannonFano => await _shannonFanoCompressor.CompressWithShannonFano(fileData,
+                        frequencies),
+                    _ => throw new NotSupportedException("Unsupported algorithm")
+                };
+
+                totalOriginalSize += fileInfo.Length;
+
+                return new
+                {
+                    Index = index,
+                    Entry = new ArchiveEntry
+                    {
+                        FileName = Path.GetFileName(path),
+                        RelativePath = path,
+                        OriginalSize = fileInfo.Length,
+                        Frequencies = frequencies,
+                        CompressedSize = compressed.Length,
+                        CompressedDataLength = compressed.Length
+                    },
+                    CompressedData = compressed
+                };
+            }))
+        );
+
         await using var output = new BinaryWriter(File.Create(outputPath));
-        output.Write(0L); // Reserve space for metadata pointer
+        output.Write(0L); // placeholder for metadata offset
 
-        for (var i = 0; i < totalFiles; i++)
+        foreach (var result in compressedResults.OrderBy(r => r.Index))
         {
-            var inputPath = inputPaths[i];
-            if (!File.Exists(inputPath)) continue;
-
-
-            var fileInfo = new FileInfo(inputPath);
-            totalOriginalSize += fileInfo.Length;
-
-            var entry = new ArchiveEntry
-            {
-                FileName = Path.GetFileName(inputPath),
-                RelativePath = inputPath,
-                OriginalSize = fileInfo.Length,
-                DataOffset = output.BaseStream.Position
-            };
-
-            byte[] fileData = File.ReadAllBytes(inputPath);
-            var frequencies = fileData.GroupBy(b => b).ToDictionary(g => g.Key, g => g.Count());
-            entry.Frequencies = frequencies;
-
-            byte[] compressedData;
-
-            if (algorithm == CompressorType.Huffman)
-            {
-                _huffmanCompressor.ProgressChanged += p =>
-                {
-                    double perFileWeight = 100.0 / totalFiles;
-                    double progress = (p / 100.0) * perFileWeight + perFileWeight * i;
-                    ProgressChangedHuffman?.Invoke(Math.Clamp((int)Math.Round(progress), 0, 100));
-                };
-                compressedData = await _huffmanCompressor.CompressWithHuffman(fileData, frequencies);
-                _huffmanCompressor.ProgressChanged -= ProgressChangedHuffman;
-            }
-            else if (algorithm == CompressorType.ShannonFano)
-            {
-                _shannonFanoCompressor.ProgressChanged += p =>
-                {
-                    double perFileWeight = 100.0 / totalFiles;
-                    double progress = (p / 100.0) * perFileWeight + perFileWeight * i;
-                    ProgressChangedShannonFano?.Invoke(Math.Clamp((int)Math.Round(progress), 0, 100));
-                };
-                compressedData = await _shannonFanoCompressor.CompressWithShannonFano(fileData, frequencies);
-                _shannonFanoCompressor.ProgressChanged -= ProgressChangedShannonFano;
-            }
-            else
-            {
-                throw new NotSupportedException($"Algorithm {algorithm} is not supported.");
-            }
-
-            entry.CompressedSize = compressedData.Length;
-            entry.CompressedDataLength = compressedData.Length;
-
-            output.Write(compressedData);
-            metadata.Entries.Add(entry);
+            result.Entry.DataOffset = output.BaseStream.Position;
+            output.Write(result.CompressedData);
+            metadata.Entries.Add(result.Entry);
         }
 
         long metadataPosition = output.BaseStream.Position;
@@ -108,6 +92,7 @@ public class ArchiveCompressor
             ProgressChangedShannonFano?.Invoke(100);
         }
 
+
         return new CompressionResult
         {
             OriginalSize = totalOriginalSize,
@@ -115,6 +100,7 @@ public class ArchiveCompressor
             Duration = stopwatch.Elapsed
         };
     }
+
 
     public async Task<string> ExtractSingleFileAsync(string archivePath, string fileName, string? outputDirectory)
     {
@@ -129,7 +115,7 @@ public class ArchiveCompressor
             input.BaseStream.Seek(metadataPosition, SeekOrigin.Begin);
             var metadata = ReadMetadata(input);
 
-            // validate if there a password
+            // validates if their a password
             if (!string.IsNullOrWhiteSpace(metadata.PasswordHash))
             {
                 string enteredPassword = PasswordDialog.RequestPassword("Please enter archive password:");
@@ -175,54 +161,57 @@ public class ArchiveCompressor
 
     public async Task<string[]> ExtractAllFilesAsync(string archivePath, string? outputDirectory = null)
     {
-        return await Task.Run(async () =>
+        using var input = new BinaryReader(File.OpenRead(archivePath));
+
+        long metadataPosition = input.ReadInt64();
+        input.BaseStream.Seek(metadataPosition, SeekOrigin.Begin);
+        var metadata = ReadMetadata(input);
+
+        if (!string.IsNullOrWhiteSpace(metadata.PasswordHash))
         {
-            var extractedFiles = new List<string>();
+            string enteredPassword = PasswordDialog.RequestPassword("Please enter archive password:");
+            if (string.IsNullOrWhiteSpace(enteredPassword))
+                throw new UnauthorizedAccessException("Password is required to extract files.");
 
-            using var input = new BinaryReader(File.OpenRead(archivePath));
+            string enteredHash = ComputeSha256Hash.Make(enteredPassword);
+            if (enteredHash != metadata.PasswordHash)
+                throw new UnauthorizedAccessException("Incorrect password.");
+        }
 
-            long metadataPosition = input.ReadInt64();
-            input.BaseStream.Seek(metadataPosition, SeekOrigin.Begin);
-            var metadata = ReadMetadata(input);
+        string outputDir = outputDirectory ?? Path.GetDirectoryName(archivePath)!;
+        var algorithm = Enum.Parse<CompressorType>(metadata.Algorithm);
 
-            if (!string.IsNullOrWhiteSpace(metadata.PasswordHash))
-            {
-                string enteredPassword = PasswordDialog.RequestPassword("Please enter archive password:");
-                if (string.IsNullOrWhiteSpace(enteredPassword))
-                {
-                    throw new UnauthorizedAccessException("Password is required to extract files.");
-                }
+        var entriesData = metadata.Entries.Select(entry =>
+        {
+            input.BaseStream.Seek(entry.DataOffset, SeekOrigin.Begin);
+            var data = input.ReadBytes((int)entry.CompressedDataLength);
+            return (entry, data);
+        }).ToList();
 
-                string enteredHash = ComputeSha256Hash.Make(enteredPassword);
-                if (enteredHash != metadata.PasswordHash)
-                {
-                    throw new UnauthorizedAccessException("Incorrect password.");
-                }
-            }
+        var extractTasks = entriesData.Select(async tuple =>
+        {
+            var (entry, compressedData) = tuple;
 
-            string outputDir = outputDirectory ?? Path.GetDirectoryName(archivePath)!;
-            var algorithm = Enum.Parse<CompressorType>(metadata.Algorithm);
+            byte[] decompressedData = await DecompressFileData(
+                compressedData,
+                entry.Frequencies,
+                algorithm,
+                0, metadata.Entries.Count
+            );
 
-            for (int i = 0; i < metadata.Entries.Count; i++)
-            {
-                var entry = metadata.Entries[i];
+            string outputPath = Path.Combine(outputDir,
+                $"{Path.GetFileNameWithoutExtension(entry.FileName)}_decompressed{Path.GetExtension(entry.FileName)}");
 
-                input.BaseStream.Seek(entry.DataOffset, SeekOrigin.Begin);
-                byte[] compressedData = input.ReadBytes((int)entry.CompressedDataLength);
+            File.WriteAllBytes(outputPath, decompressedData);
 
-                byte[] decompressedData = await DecompressFileData(compressedData, entry.Frequencies, algorithm, i,
-                    metadata.Entries.Count);
-
-                string outputPath = Path.Combine(outputDir,
-                    $"{Path.GetFileNameWithoutExtension(entry.FileName)}_decompressed{Path.GetExtension(entry.FileName)}");
-                File.WriteAllBytes(outputPath, decompressedData);
-
-                extractedFiles.Add(outputPath);
-            }
-
-            return extractedFiles.ToArray();
+            return outputPath;
         });
+
+        var extractedFiles = (await Task.WhenAll(extractTasks)).ToArray();
+        
+        return extractedFiles;
     }
+
 
     public List<ArchiveEntry> ListFiles(string archivePath)
     {
@@ -264,7 +253,7 @@ public class ArchiveCompressor
 
         throw new NotSupportedException($"Algorithm {algorithm} is not supported for archives.");
     }
-    
+
     private void WriteMetadata(BinaryWriter writer, ArchiveMetadata metadata)
     {
         writer.Write(metadata.Algorithm);
