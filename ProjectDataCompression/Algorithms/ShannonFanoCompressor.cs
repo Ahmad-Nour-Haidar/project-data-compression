@@ -1,11 +1,11 @@
-namespace ProjectDataCompression.Project;
+namespace ProjectDataCompression.Algorithms;
 
 public class ShannonFanoCompressor
 {
     private readonly ManualResetEventSlim _pauseEvent = new(true);
-    private CancellationTokenSource _cts;
+    private CancellationTokenSource? _cts;
 
-    public event Action<int> ProgressChanged;
+    public event Action<int>? ProgressChanged;
 
     private void BuildShannonFanoCodes(List<(byte symbol, int freq)> symbols, int start, int end, string code,
         Dictionary<byte, string> codes)

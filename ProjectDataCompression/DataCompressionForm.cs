@@ -1,4 +1,5 @@
 using System.Media;
+using ProjectDataCompression.Algorithms;
 using ProjectDataCompression.Enums;
 
 namespace ProjectDataCompression.Models;
@@ -308,7 +309,6 @@ public partial class DataCompressionForm : Form
                     listBoxArchiveFiles.Items.Add(
                         $"   Size: {FormatBytes(file.OriginalSize)} → {FormatBytes(file.CompressedSize)}");
                     listBoxArchiveFiles.Items.Add($"   Ratio: {(file.CompressedSize * 100.0 / file.OriginalSize):F1}%");
-                    listBoxArchiveFiles.Items.Add($"   Modified: {file.LastModified:yyyy-MM-dd HH:mm:ss}");
                     listBoxArchiveFiles.Items.Add("");
                 }
             }

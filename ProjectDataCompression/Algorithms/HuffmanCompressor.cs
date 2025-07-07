@@ -1,5 +1,7 @@
 using ProjectDataCompression.Project;
 
+namespace ProjectDataCompression.Algorithms;
+
 public class HuffmanCompressor
 {
     private readonly ManualResetEventSlim _pauseEvent = new(true);

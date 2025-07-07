@@ -1,9 +1,10 @@
 using System.Diagnostics;
-using ProjectDataCompression;
 using ProjectDataCompression.Enums;
 using ProjectDataCompression.Functions;
 using ProjectDataCompression.Models;
 using ProjectDataCompression.Project;
+
+namespace ProjectDataCompression.Algorithms;
 
 public class ArchiveCompressor
 {
@@ -48,7 +49,6 @@ public class ArchiveCompressor
                 FileName = Path.GetFileName(inputPath),
                 RelativePath = inputPath,
                 OriginalSize = fileInfo.Length,
-                LastModified = fileInfo.LastWriteTime,
                 DataOffset = output.BaseStream.Position
             };
 
@@ -118,7 +118,6 @@ public class ArchiveCompressor
 
     public async Task<string> ExtractSingleFileAsync(string archivePath, string fileName, string? outputDirectory)
     {
-
         return await Task.Run(async () =>
         {
             using var input = new BinaryReader(File.OpenRead(archivePath));
@@ -176,7 +175,6 @@ public class ArchiveCompressor
 
     public async Task<string[]> ExtractAllFilesAsync(string archivePath, string? outputDirectory = null)
     {
-
         return await Task.Run(async () =>
         {
             var extractedFiles = new List<string>();
@@ -218,7 +216,6 @@ public class ArchiveCompressor
                 string outputPath = Path.Combine(outputDir,
                     $"{Path.GetFileNameWithoutExtension(entry.FileName)}_decompressed{Path.GetExtension(entry.FileName)}");
                 File.WriteAllBytes(outputPath, decompressedData);
-                File.SetLastWriteTime(outputPath, entry.LastModified);
 
                 extractedFiles.Add(outputPath);
             }
@@ -284,7 +281,6 @@ public class ArchiveCompressor
             writer.Write(entry.CompressedSize);
             writer.Write(entry.DataOffset);
             writer.Write(entry.CompressedDataLength);
-            writer.Write(entry.LastModified.ToBinary());
 
             writer.Write(entry.Frequencies.Count);
             foreach (var freq in entry.Frequencies)
@@ -315,7 +311,6 @@ public class ArchiveCompressor
                 CompressedSize = reader.ReadInt64(),
                 DataOffset = reader.ReadInt64(),
                 CompressedDataLength = reader.ReadInt64(),
-                LastModified = DateTime.FromBinary(reader.ReadInt64())
             };
 
             int freqCount = reader.ReadInt32();

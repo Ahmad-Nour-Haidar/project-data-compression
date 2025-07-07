@@ -8,7 +8,6 @@ public class ArchiveEntry
     public long CompressedSize { get; set; }
     public long DataOffset { get; set; }
     public long CompressedDataLength { get; set; }
-    public DateTime LastModified { get; set; }
     public Dictionary<byte, int> Frequencies { get; set; }
         
     public ArchiveEntry()
