@@ -1,4 +1,4 @@
-using ProjectDataCompression.Models;
+using ProjectDataCompression;
 
 static class Program
 {

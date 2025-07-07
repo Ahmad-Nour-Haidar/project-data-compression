@@ -2,89 +2,76 @@ using System.Media;
 using ProjectDataCompression.Algorithms;
 using ProjectDataCompression.Enums;
 
-namespace ProjectDataCompression.Models;
+namespace ProjectDataCompression;
 
 public partial class DataCompressionForm : Form
 {
-    private ArchiveCompressor _archive = new();
+    private readonly ArchiveCompressor _archive = new();
 
-    private Button btnSelectSingleFile;
-    private Button btnSelectMultipleFiles;
-    private Button btnSelectCompressedFile;
-    private TextBox txtInputPath;
-    private TextBox txtInputPassword;
-    private ComboBox comboBoxAlgorithm;
-    private Button btnCompress;
-    private Button btnDecompress;
-    private Button btnExtractSingle;
-    private Button btnPause;
-    private Button btnResume;
-    private Button btnCancel;
-    private ListBox listBoxResults;
-    private ListBox listBoxArchiveFiles;
-    private ProgressBar progressBarHuffman;
-    private ProgressBar progressBarShannon;
-    private Label lblHuffmanProgress;
-    private Label lblShannonProgress;
-    private Label lblArchiveProgress;
+    private Button _btnSelectSingleFile;
+    private Button _btnSelectMultipleFiles;
+    private Button _btnSelectCompressedFile;
+    private TextBox _txtInputPath;
+    private TextBox _txtInputPassword;
+    private ComboBox _comboBoxAlgorithm;
+    private Button _btnCompress;
+    private Button _btnDecompress;
+    private Button _btnExtractSingle;
+    private Button _btnPause;
+    private Button _btnResume;
+    private Button _btnCancel;
+    private ListBox _listBoxResults;
+    private ListBox _listBoxArchiveFiles;
+    private ProgressBar _progressBarHuffman;
+    private ProgressBar _progressBarShannon;
+    private Label _lblHuffmanProgress;
+    private Label _lblShannonProgress;
 
-    private string[] _selectedFiles = new string[0];
+    private string[] _selectedFiles = [];
 
     public DataCompressionForm()
     {
         InitializeComponent();
         InitComponent();
 
-        comboBoxAlgorithm.DataSource = Enum.GetValues(typeof(CompressorType));
+        _comboBoxAlgorithm!.DataSource = Enum.GetValues(typeof(CompressorType));
 
         SetProgressBar();
-        SetInitialButtonStates();
-    }
-
-    private void SetInitialButtonStates()
-    {
-        // btnPause.Enabled = false;
-        // btnResume.Enabled = false;
-        // btnCancel.Enabled = false;
-        // btnCompress.Enabled = false;
-        // btnDecompress.Enabled = false;
-        // btnExtractSingle.Enabled = false;
-        // btnListFiles.Enabled = false;
     }
 
     private void SetProgressBar()
     {
         _archive.ProgressChangedHuffman += p =>
         {
-            progressBarHuffman.Invoke(() =>
+            _progressBarHuffman.Invoke(() =>
             {
-                progressBarHuffman.Value = p;
-                lblHuffmanProgress.Text = $"Huffman: {p}%";
+                _progressBarHuffman.Value = p;
+                _lblHuffmanProgress.Text = $"Huffman: {p}%";
             });
         };
 
         _archive.ProgressChangedShannonFano += p =>
         {
-            progressBarShannon.Invoke(() =>
+            _progressBarShannon.Invoke(() =>
             {
-                progressBarShannon.Value = p;
-                lblShannonProgress.Text = $"Shannon-Fano: {p}%";
+                _progressBarShannon.Value = p;
+                _lblShannonProgress.Text = $"Shannon-Fano: {p}%";
             });
         };
     }
 
     private void SetControlsEnabled(bool enabled)
     {
-        btnCompress.Enabled = enabled;
-        btnSelectSingleFile.Enabled = enabled;
-        btnSelectMultipleFiles.Enabled = enabled;
-        btnSelectCompressedFile.Enabled = enabled;
-        comboBoxAlgorithm.Enabled = enabled;
-        btnDecompress.Enabled = enabled;
-        btnExtractSingle.Enabled = enabled;
-        btnPause.Enabled = !enabled;
-        btnResume.Enabled = !enabled;
-        btnCancel.Enabled = !enabled;
+        _btnCompress.Enabled = enabled;
+        _btnSelectSingleFile.Enabled = enabled;
+        _btnSelectMultipleFiles.Enabled = enabled;
+        _btnSelectCompressedFile.Enabled = enabled;
+        _comboBoxAlgorithm.Enabled = enabled;
+        _btnDecompress.Enabled = enabled;
+        _btnExtractSingle.Enabled = enabled;
+        _btnPause.Enabled = !enabled;
+        _btnResume.Enabled = !enabled;
+        _btnCancel.Enabled = !enabled;
     }
 
     private void BtnSelectSingleFileClick(object sender, EventArgs e)
@@ -95,9 +82,9 @@ public partial class DataCompressionForm : Form
 
         if (ofd.ShowDialog() == DialogResult.OK)
         {
-            txtInputPath.Text = ofd.FileName;
-            _selectedFiles = new[] { ofd.FileName };
-            btnCompress.Enabled = true;
+            _txtInputPath.Text = ofd.FileName;
+            _selectedFiles = [ofd.FileName];
+            _btnCompress.Enabled = true;
         }
     }
 
@@ -110,17 +97,17 @@ public partial class DataCompressionForm : Form
         if (ofd.ShowDialog() == DialogResult.OK)
         {
             _selectedFiles = ofd.FileNames;
-            txtInputPath.Text = $"{_selectedFiles.Length} files selected";
+            _txtInputPath.Text = $"{_selectedFiles.Length} files selected";
 
-            listBoxArchiveFiles.Items.Clear();
-            listBoxArchiveFiles.Items.Add("Selected Files:");
+            _listBoxArchiveFiles.Items.Clear();
+            _listBoxArchiveFiles.Items.Add("Selected Files:");
             foreach (var file in _selectedFiles)
             {
-                listBoxArchiveFiles.Items.Add($"  • {Path.GetFileName(file)}");
+                _listBoxArchiveFiles.Items.Add($"  • {Path.GetFileName(file)}");
             }
 
-            btnCompress.Enabled = true;
-            btnDecompress.Enabled = true;
+            _btnCompress.Enabled = true;
+            _btnDecompress.Enabled = true;
         }
     }
 
@@ -131,15 +118,15 @@ public partial class DataCompressionForm : Form
 
         if (ofd.ShowDialog() == DialogResult.OK)
         {
-            txtInputPath.Text = ofd.FileName;
-            _selectedFiles = new[] { ofd.FileName };
-            btnDecompress.Enabled = true;
-            btnCompress.Enabled = false;
-            btnExtractSingle.Enabled = true;
+            _txtInputPath.Text = ofd.FileName;
+            _selectedFiles = [ofd.FileName];
+            _btnDecompress.Enabled = true;
+            _btnCompress.Enabled = false;
+            _btnExtractSingle.Enabled = true;
             ShowListFiles();
             if (_selectedFiles.Length > 0)
             {
-                btnExtractSingle.Visible = true;
+                _btnExtractSingle.Visible = true;
             }
         }
     }
@@ -156,12 +143,21 @@ public partial class DataCompressionForm : Form
         try
         {
             SetControlsEnabled(false);
-            listBoxResults.Items.Clear();
+            _listBoxResults.Items.Clear();
 
-            var algorithm = (CompressorType)comboBoxAlgorithm.SelectedItem!;
-            var password = string.IsNullOrWhiteSpace(txtInputPassword.Text) ? null : txtInputPassword.Text;
+            var algorithm = (CompressorType)_comboBoxAlgorithm.SelectedItem!;
+            var password = string.IsNullOrWhiteSpace(_txtInputPassword.Text) ? null : _txtInputPassword.Text;
 
-            await CompressMultipleFiles(algorithm, password);
+            if (algorithm == CompressorType.Both)
+            {
+                var huffmanTask = CompressMultipleFiles(CompressorType.Huffman, password);
+                var shannonTask = CompressMultipleFiles(CompressorType.ShannonFano, password);
+                await Task.WhenAll(huffmanTask, shannonTask);
+            }
+            else
+            {
+                await CompressMultipleFiles(algorithm, password);
+            }
 
             SystemSounds.Asterisk.Play();
         }
@@ -175,20 +171,22 @@ public partial class DataCompressionForm : Form
         }
     }
 
+
     private async Task CompressMultipleFiles(CompressorType algorithm, string? password)
     {
         var outputFile = Path.Combine(Path.GetDirectoryName(_selectedFiles[0])!,
-            $"Archive_{DateTime.Now:yyyyMMdd_HHmmss}.{ArchiveCompressor.CompressedFileExt}");
+            $"Archive_{DateTime.Now:yyyyMMdd_HHmmss}{Path.GetFileNameWithoutExtension(Path.GetRandomFileName())}.{ArchiveCompressor.CompressedFileExt}");
 
         var result = await _archive.CompressMultipleFilesAsync(_selectedFiles, outputFile, password, algorithm);
 
-        listBoxResults.Items.Add($"Archive Compression Complete - {algorithm}");
-        listBoxResults.Items.Add($"Files Compressed: {_selectedFiles.Length}");
-        listBoxResults.Items.Add($"Original Size: {FormatBytes(result.OriginalSize)}");
-        listBoxResults.Items.Add($"Compressed Size: {FormatBytes(result.CompressedSize)}");
-        listBoxResults.Items.Add($"Compression Ratio: {result.CompressionRatio:F2}%");
-        listBoxResults.Items.Add($"Duration: {result.Duration.TotalSeconds:F2} seconds");
-        listBoxResults.Items.Add($"Output: {outputFile}");
+        _listBoxResults.Items.Add("\n=================================");
+        _listBoxResults.Items.Add($"Archive Compression Complete - {algorithm}");
+        _listBoxResults.Items.Add($"Files Compressed: {_selectedFiles.Length}");
+        _listBoxResults.Items.Add($"Original Size: {FormatBytes(result.OriginalSize)}");
+        _listBoxResults.Items.Add($"Compressed Size: {FormatBytes(result.CompressedSize)}");
+        _listBoxResults.Items.Add($"Compression Ratio: {result.CompressionRatio:F2}%");
+        _listBoxResults.Items.Add($"Duration: {result.Duration.TotalSeconds:F2} seconds");
+        _listBoxResults.Items.Add($"Output: {outputFile}");
     }
 
     private async void btnDecompress_Click(object sender, EventArgs e)
@@ -203,22 +201,12 @@ public partial class DataCompressionForm : Form
         try
         {
             SetControlsEnabled(false);
-            listBoxResults.Items.Clear();
+            _listBoxResults.Items.Clear();
 
             var inputFile = _selectedFiles[0];
-
-
-            // ,Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            
             await new ArchiveCompressor().ExtractAllFilesAsync(inputFile);
-
-            // if (result != null)
-            // {
-            //     listBoxResults.Items.Add($"Decompression Complete - {algorithm}");
-            //     listBoxResults.Items.Add($"Compressed Size: {FormatBytes(result.CompressedSize)}");
-            //     listBoxResults.Items.Add($"Decompressed Size: {FormatBytes(result.OriginalSize)}");
-            //     listBoxResults.Items.Add($"Duration: {result.Duration.TotalSeconds:F2} seconds");
-            //     listBoxResults.Items.Add($"Output: {outputFile}");
-            // }
+            
             SystemSounds.Asterisk.Play();
         }
         catch (Exception ex)
@@ -260,13 +248,13 @@ public partial class DataCompressionForm : Form
                 return;
 
             SetControlsEnabled(false);
-            listBoxResults.Items.Clear();
+            _listBoxResults.Items.Clear();
 
             var extractedPath = await _archive.ExtractSingleFileAsync(archivePath, selectedFile, null);
 
-            listBoxResults.Items.Add($"File Extracted Successfully");
-            listBoxResults.Items.Add($"File: {selectedFile}");
-            listBoxResults.Items.Add($"Extracted To: {extractedPath}");
+            _listBoxResults.Items.Add($"File Extracted Successfully");
+            _listBoxResults.Items.Add($"File: {selectedFile}");
+            _listBoxResults.Items.Add($"Extracted To: {extractedPath}");
 
             SystemSounds.Asterisk.Play();
         }
@@ -293,23 +281,23 @@ public partial class DataCompressionForm : Form
         {
             var files = _archive.ListFiles(_selectedFiles[0]);
 
-            listBoxArchiveFiles.Items.Clear();
-            listBoxArchiveFiles.Items.Add("Archive Contents:");
-            listBoxArchiveFiles.Items.Add("================");
+            _listBoxArchiveFiles.Items.Clear();
+            _listBoxArchiveFiles.Items.Add("Archive Contents:");
+            _listBoxArchiveFiles.Items.Add("================");
 
             if (files.Count == 0)
             {
-                listBoxArchiveFiles.Items.Add("No files found in the archive.");
+                _listBoxArchiveFiles.Items.Add("No files found in the archive.");
             }
             else
             {
                 foreach (var file in files)
                 {
-                    listBoxArchiveFiles.Items.Add($"📄 {file.FileName}");
-                    listBoxArchiveFiles.Items.Add(
+                    _listBoxArchiveFiles.Items.Add($"📄 {file.FileName}");
+                    _listBoxArchiveFiles.Items.Add(
                         $"   Size: {FormatBytes(file.OriginalSize)} → {FormatBytes(file.CompressedSize)}");
-                    listBoxArchiveFiles.Items.Add($"   Ratio: {(file.CompressedSize * 100.0 / file.OriginalSize):F1}%");
-                    listBoxArchiveFiles.Items.Add("");
+                    _listBoxArchiveFiles.Items.Add($"   Ratio: {(file.CompressedSize * 100.0 / file.OriginalSize):F1}%");
+                    _listBoxArchiveFiles.Items.Add("");
                 }
             }
         }
@@ -322,12 +310,10 @@ public partial class DataCompressionForm : Form
 
     private string ShowFileSelectionDialog(string[] fileNames)
     {
-        using var form = new Form
-        {
-            Text = "Select File to Extract",
-            Size = new Size(400, 300),
-            StartPosition = FormStartPosition.CenterParent
-        };
+        using var form = new Form();
+        form.Text = "Select File to Extract";
+        form.Size = new Size(400, 300);
+        form.StartPosition = FormStartPosition.CenterParent;
 
         var listBox = new ListBox
         {
@@ -343,7 +329,7 @@ public partial class DataCompressionForm : Form
             Height = 40
         };
 
-        var btnOK = new Button
+        var btnOk = new Button
         {
             Text = "OK",
             DialogResult = DialogResult.OK,
@@ -361,15 +347,15 @@ public partial class DataCompressionForm : Form
             Size = new Size(70, 25)
         };
 
-        panel.Controls.AddRange(new Control[] { btnOK, btnCancel });
-        form.Controls.AddRange(new Control[] { listBox, panel });
+        panel.Controls.AddRange(btnOk, btnCancel);
+        form.Controls.AddRange(listBox, panel);
 
-        form.AcceptButton = btnOK;
+        form.AcceptButton = btnOk;
         form.CancelButton = btnCancel;
 
         if (form.ShowDialog() == DialogResult.OK && listBox.SelectedItem != null)
         {
-            return listBox.SelectedItem.ToString();
+            return listBox.SelectedItem.ToString()!;
         }
 
         return null;
@@ -377,27 +363,27 @@ public partial class DataCompressionForm : Form
 
     private void btnPause_Click(object sender, EventArgs e)
     {
-        _archive?.Pause();
-        btnPause.Enabled = false;
-        btnResume.Enabled = true;
+        _archive.Pause();
+        _btnPause.Enabled = false;
+        _btnResume.Enabled = true;
     }
 
     private void btnResume_Click(object sender, EventArgs e)
     {
-        _archive?.Resume();
-        btnPause.Enabled = true;
-        btnResume.Enabled = false;
+        _archive.Resume();
+        _btnPause.Enabled = true;
+        _btnResume.Enabled = false;
     }
 
     private void btnCancel_Click(object sender, EventArgs e)
     {
-        _archive?.Cancel();
+        _archive.Cancel();
         SetControlsEnabled(true);
     }
 
     private string FormatBytes(long bytes)
     {
-        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+        string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
         int counter = 0;
         double number = bytes;
 
@@ -429,10 +415,10 @@ public partial class DataCompressionForm : Form
         lblAlgorithm.Location = new Point(20, 20);
         lblAlgorithm.Size = new Size(70, 23);
 
-        comboBoxAlgorithm = new ComboBox();
-        comboBoxAlgorithm.Location = new Point(110, 20);
-        comboBoxAlgorithm.Size = new Size(120, 23);
-        comboBoxAlgorithm.DropDownStyle = ComboBoxStyle.DropDownList;
+        _comboBoxAlgorithm = new ComboBox();
+        _comboBoxAlgorithm.Location = new Point(110, 20);
+        _comboBoxAlgorithm.Size = new Size(120, 23);
+        _comboBoxAlgorithm.DropDownStyle = ComboBoxStyle.DropDownList;
 
         // Password Input
         var lblPassword = new Label();
@@ -441,30 +427,30 @@ public partial class DataCompressionForm : Form
         lblPassword.Size = new Size(70, 23);
         lblPassword.TextAlign = ContentAlignment.MiddleLeft;
 
-        txtInputPassword = new TextBox();
-        txtInputPassword.Location = new Point(340, 20);
-        txtInputPassword.Size = new Size(120, 23);
+        _txtInputPassword = new TextBox();
+        _txtInputPassword.Location = new Point(340, 20);
+        _txtInputPassword.Size = new Size(120, 23);
         // txtInputPassword.PasswordChar = '*';
-        txtInputPassword.PlaceholderText = "Password";
+        _txtInputPassword.PlaceholderText = "Password";
 
         // File Selection Buttons
-        btnSelectSingleFile = new Button();
-        btnSelectSingleFile.Text = "Select Single File";
-        btnSelectSingleFile.Location = new Point(20, 60);
-        btnSelectSingleFile.Size = new Size(100, 30);
-        btnSelectSingleFile.Click += BtnSelectSingleFileClick;
+        _btnSelectSingleFile = new Button();
+        _btnSelectSingleFile.Text = "Select Single File";
+        _btnSelectSingleFile.Location = new Point(20, 60);
+        _btnSelectSingleFile.Size = new Size(100, 30);
+        _btnSelectSingleFile.Click += BtnSelectSingleFileClick!;
 
-        btnSelectMultipleFiles = new Button();
-        btnSelectMultipleFiles.Text = "Select Multiple Files";
-        btnSelectMultipleFiles.Location = new Point(140, 60);
-        btnSelectMultipleFiles.Size = new Size(150, 30);
-        btnSelectMultipleFiles.Click += btnSelectMultipleFiles_Click;
+        _btnSelectMultipleFiles = new Button();
+        _btnSelectMultipleFiles.Text = "Select Multiple Files";
+        _btnSelectMultipleFiles.Location = new Point(140, 60);
+        _btnSelectMultipleFiles.Size = new Size(150, 30);
+        _btnSelectMultipleFiles.Click += btnSelectMultipleFiles_Click!;
 
-        btnSelectCompressedFile = new Button();
-        btnSelectCompressedFile.Text = "Select Compressed";
-        btnSelectCompressedFile.Location = new Point(310, 60);
-        btnSelectCompressedFile.Size = new Size(150, 30);
-        btnSelectCompressedFile.Click += btnSelectCompressedFile_Click;
+        _btnSelectCompressedFile = new Button();
+        _btnSelectCompressedFile.Text = "Select Compressed";
+        _btnSelectCompressedFile.Location = new Point(310, 60);
+        _btnSelectCompressedFile.Size = new Size(150, 30);
+        _btnSelectCompressedFile.Click += btnSelectCompressedFile_Click!;
 
         // Input Path Display
         var lblInputPath = new Label();
@@ -473,117 +459,104 @@ public partial class DataCompressionForm : Form
         lblInputPath.Size = new Size(100, 23);
         lblInputPath.TextAlign = ContentAlignment.MiddleLeft;
 
-        txtInputPath = new TextBox();
-        txtInputPath.Location = new Point(130, 100);
-        txtInputPath.Size = new Size(570, 23);
-        txtInputPath.ReadOnly = true;
-        txtInputPath.BackColor = SystemColors.Control;
+        _txtInputPath = new TextBox();
+        _txtInputPath.Location = new Point(130, 100);
+        _txtInputPath.Size = new Size(570, 23);
+        _txtInputPath.ReadOnly = true;
+        _txtInputPath.BackColor = SystemColors.Control;
 
         // Action Buttons
-        btnCompress = new Button();
-        btnCompress.Text = "Compress";
-        btnCompress.Location = new Point(20, 140);
-        btnCompress.Size = new Size(80, 35);
-        btnCompress.UseVisualStyleBackColor = true;
-        btnCompress.Click += btnCompress_Click;
+        _btnCompress = new Button();
+        _btnCompress.Text = "Compress";
+        _btnCompress.Location = new Point(20, 140);
+        _btnCompress.Size = new Size(80, 35);
+        _btnCompress.UseVisualStyleBackColor = true;
+        _btnCompress.Click += btnCompress_Click!;
 
-        btnDecompress = new Button();
-        btnDecompress.Text = "Decompress";
-        btnDecompress.Location = new Point(110, 140);
-        btnDecompress.Size = new Size(90, 35);
-        btnDecompress.UseVisualStyleBackColor = true;
-        btnDecompress.Click += btnDecompress_Click;
+        _btnDecompress = new Button();
+        _btnDecompress.Text = "Decompress";
+        _btnDecompress.Location = new Point(110, 140);
+        _btnDecompress.Size = new Size(90, 35);
+        _btnDecompress.UseVisualStyleBackColor = true;
+        _btnDecompress.Click += btnDecompress_Click!;
 
-        btnExtractSingle = new Button();
-        btnExtractSingle.Text = "Extract Single";
-        btnExtractSingle.Location = new Point(210, 140);
-        btnExtractSingle.Size = new Size(100, 35);
-        btnExtractSingle.UseVisualStyleBackColor = true;
-        btnExtractSingle.Click += btnExtractSingle_Click;
-        btnExtractSingle.Visible = false;
+        _btnExtractSingle = new Button();
+        _btnExtractSingle.Text = "Extract Single";
+        _btnExtractSingle.Location = new Point(210, 140);
+        _btnExtractSingle.Size = new Size(150, 35);
+        _btnExtractSingle.UseVisualStyleBackColor = true;
+        _btnExtractSingle.Click += btnExtractSingle_Click!;
+        _btnExtractSingle.Visible = false;
 
         // Control Buttons
-        btnPause = new Button();
-        btnPause.Text = "Pause";
-        btnPause.Location = new Point(450, 140);
-        btnPause.Size = new Size(70, 35);
-        btnPause.UseVisualStyleBackColor = true;
-        btnPause.Click += btnPause_Click;
+        _btnPause = new Button();
+        _btnPause.Text = "Pause";
+        _btnPause.Location = new Point(450, 140);
+        _btnPause.Size = new Size(70, 35);
+        _btnPause.UseVisualStyleBackColor = true;
+        _btnPause.Click += btnPause_Click!;
 
-        btnResume = new Button();
-        btnResume.Text = "Resume";
-        btnResume.Location = new Point(530, 140);
-        btnResume.Size = new Size(70, 35);
-        btnResume.UseVisualStyleBackColor = true;
-        btnResume.Click += btnResume_Click;
+        _btnResume = new Button();
+        _btnResume.Text = "Resume";
+        _btnResume.Location = new Point(530, 140);
+        _btnResume.Size = new Size(70, 35);
+        _btnResume.UseVisualStyleBackColor = true;
+        _btnResume.Click += btnResume_Click!;
 
-        btnCancel = new Button();
-        btnCancel.Text = "Cancel";
-        btnCancel.Location = new Point(610, 140);
-        btnCancel.Size = new Size(70, 35);
-        btnCancel.UseVisualStyleBackColor = true;
-        btnCancel.Click += btnCancel_Click;
+        _btnCancel = new Button();
+        _btnCancel.Text = "Cancel";
+        _btnCancel.Location = new Point(610, 140);
+        _btnCancel.Size = new Size(70, 35);
+        _btnCancel.UseVisualStyleBackColor = true;
+        _btnCancel.Click += btnCancel_Click!;
 
         // Progress Bars and Labels
-        lblHuffmanProgress = new Label();
-        lblHuffmanProgress.Text = "Huffman: 0%";
-        lblHuffmanProgress.Location = new Point(20, 190);
-        lblHuffmanProgress.Size = new Size(150, 20);
-        lblHuffmanProgress.TextAlign = ContentAlignment.MiddleLeft;
+        _lblHuffmanProgress = new Label();
+        _lblHuffmanProgress.Text = "Huffman: 0%";
+        _lblHuffmanProgress.Location = new Point(20, 190);
+        _lblHuffmanProgress.Size = new Size(150, 20);
+        _lblHuffmanProgress.TextAlign = ContentAlignment.MiddleLeft;
 
-        progressBarHuffman = new ProgressBar();
-        progressBarHuffman.Location = new Point(180, 190);
-        progressBarHuffman.Size = new Size(200, 20);
-        progressBarHuffman.Maximum = 100;
-        progressBarHuffman.Style = ProgressBarStyle.Continuous;
+        _progressBarHuffman = new ProgressBar();
+        _progressBarHuffman.Location = new Point(180, 190);
+        _progressBarHuffman.Size = new Size(200, 20);
+        _progressBarHuffman.Maximum = 100;
+        _progressBarHuffman.Style = ProgressBarStyle.Continuous;
 
-        lblShannonProgress = new Label();
-        lblShannonProgress.Text = "Shannon-Fano: 0%";
-        lblShannonProgress.Location = new Point(20, 220);
-        lblShannonProgress.Size = new Size(150, 20);
-        lblShannonProgress.TextAlign = ContentAlignment.MiddleLeft;
+        _lblShannonProgress = new Label();
+        _lblShannonProgress.Text = "Shannon-Fano: 0%";
+        _lblShannonProgress.Location = new Point(20, 220);
+        _lblShannonProgress.Size = new Size(150, 20);
+        _lblShannonProgress.TextAlign = ContentAlignment.MiddleLeft;
 
-        progressBarShannon = new ProgressBar();
-        progressBarShannon.Location = new Point(180, 220);
-        progressBarShannon.Size = new Size(200, 20);
-        progressBarShannon.Maximum = 100;
-        progressBarShannon.Style = ProgressBarStyle.Continuous;
-
-        lblArchiveProgress = new Label();
-        lblArchiveProgress.Text = "Archive: 0%";
-        lblArchiveProgress.Location = new Point(20, 250);
-        lblArchiveProgress.Size = new Size(150, 20);
-        lblArchiveProgress.TextAlign = ContentAlignment.MiddleLeft;
-        lblArchiveProgress.Visible = false;
+        _progressBarShannon = new ProgressBar();
+        _progressBarShannon.Location = new Point(180, 220);
+        _progressBarShannon.Size = new Size(200, 20);
+        _progressBarShannon.Maximum = 100;
+        _progressBarShannon.Style = ProgressBarStyle.Continuous;
 
         // Results Section
         var lblResults = new Label();
         lblResults.Text = "Results:";
         lblResults.Location = new Point(20, 280);
         lblResults.Size = new Size(100, 23);
-        lblResults.TextAlign = ContentAlignment.MiddleLeft;
-        lblResults.Font = new Font(lblResults.Font, FontStyle.Bold);
 
-        listBoxResults = new ListBox();
-        listBoxResults.Location = new Point(20, 310);
-        listBoxResults.Size = new Size(420, 320);
-        listBoxResults.HorizontalScrollbar = true;
-        listBoxResults.Font = new Font("Consolas", 9);
+        _listBoxResults = new ListBox();
+        _listBoxResults.Location = new Point(20, 310);
+        _listBoxResults.Size = new Size(420, 320);
+        _listBoxResults.HorizontalScrollbar = true;
 
         // Archive Files Section
 
-        listBoxArchiveFiles = new ListBox();
-        listBoxArchiveFiles.Location = new Point(460, 310);
-        listBoxArchiveFiles.Size = new Size(400, 320);
-        listBoxArchiveFiles.HorizontalScrollbar = true;
-        listBoxArchiveFiles.Font = new Font("Consolas", 9);
+        _listBoxArchiveFiles = new ListBox();
+        _listBoxArchiveFiles.Location = new Point(460, 310);
+        _listBoxArchiveFiles.Size = new Size(400, 320);
+        _listBoxArchiveFiles.HorizontalScrollbar = true;
 
-        // Basic layout (would be properly positioned in designer)
-        Controls.AddRange(btnSelectSingleFile, btnSelectMultipleFiles, btnSelectCompressedFile,
-            txtInputPath, txtInputPassword, lblAlgorithm, comboBoxAlgorithm, btnCompress, btnDecompress,
-            btnExtractSingle, btnPause, btnResume, btnCancel, listBoxResults, listBoxArchiveFiles,
-            progressBarHuffman, progressBarShannon, lblHuffmanProgress, lblShannonProgress,
-            lblArchiveProgress);
+        Controls.AddRange(_btnSelectSingleFile, _btnSelectMultipleFiles, _btnSelectCompressedFile,
+            _txtInputPath, _txtInputPassword, lblAlgorithm, _comboBoxAlgorithm, _btnCompress, _btnDecompress,
+            _btnExtractSingle, _btnPause, _btnResume, _btnCancel, _listBoxResults, _listBoxArchiveFiles,
+            _progressBarHuffman, _progressBarShannon, _lblHuffmanProgress, _lblShannonProgress);
 
         ResumeLayout(false);
     }

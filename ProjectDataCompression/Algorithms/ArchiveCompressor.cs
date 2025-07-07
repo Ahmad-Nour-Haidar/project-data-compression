@@ -10,8 +10,8 @@ public class ArchiveCompressor
 {
     public static readonly String CompressedFileExt = "compress";
 
-    private HuffmanCompressor _huffmanCompressor = new();
-    private ShannonFanoCompressor _shannonFanoCompressor = new();
+    private readonly HuffmanCompressor _huffmanCompressor = new();
+    private readonly ShannonFanoCompressor _shannonFanoCompressor = new();
 
     public event Action<int> ProgressChangedHuffman;
     public event Action<int> ProgressChangedShannonFano;
@@ -32,12 +32,12 @@ public class ArchiveCompressor
             PasswordHash = string.IsNullOrWhiteSpace(password) ? "" : ComputeSha256Hash.Make(password)
         };
 
-        using var output = new BinaryWriter(File.Create(outputPath));
+        await using var output = new BinaryWriter(File.Create(outputPath));
         output.Write(0L); // Reserve space for metadata pointer
 
-        for (int i = 0; i < totalFiles; i++)
+        for (var i = 0; i < totalFiles; i++)
         {
-            string inputPath = inputPaths[i];
+            var inputPath = inputPaths[i];
             if (!File.Exists(inputPath)) continue;
 
 
@@ -145,7 +145,7 @@ public class ArchiveCompressor
                 }
             }
 
-            // search for target file
+            // search for a target file
             var targetEntry = metadata.Entries.FirstOrDefault(e =>
                 e.FileName.Equals(fileName, StringComparison.OrdinalIgnoreCase));
 
@@ -200,7 +200,7 @@ public class ArchiveCompressor
                 }
             }
 
-            string outputDir = outputDirectory ?? Path.GetDirectoryName(archivePath);
+            string outputDir = outputDirectory ?? Path.GetDirectoryName(archivePath)!;
             var algorithm = Enum.Parse<CompressorType>(metadata.Algorithm);
 
             for (int i = 0; i < metadata.Entries.Count; i++)
@@ -264,8 +264,7 @@ public class ArchiveCompressor
 
         throw new NotSupportedException($"Algorithm {algorithm} is not supported for archives.");
     }
-
-
+    
     private void WriteMetadata(BinaryWriter writer, ArchiveMetadata metadata)
     {
         writer.Write(metadata.Algorithm);

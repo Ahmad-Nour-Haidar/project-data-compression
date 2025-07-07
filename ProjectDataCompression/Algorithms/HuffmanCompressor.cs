@@ -61,8 +61,17 @@ public class HuffmanCompressor
             {
                 token.ThrowIfCancellationRequested();
                 _pauseEvent.Wait();
+
+
                 string chunk = bitString.Substring(i, Math.Min(8, bitString.Length - i)).PadRight(8, '0');
                 result.Add(Convert.ToByte(chunk, 2));
+                
+                // // to test pause and resume
+                // if (i % 100 == 0)
+                // {
+                //     Thread.Sleep(1);
+                // }
+
                 if (i % 1000 == 0)
                 {
                     var progress = (i * 100 / bitString.Length);
