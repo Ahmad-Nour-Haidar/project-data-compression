@@ -1,4 +1,3 @@
-// File: CompressionResult.cs 
 namespace ProjectDataCompression.Models;
 
 public class CompressionResult

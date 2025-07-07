@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ProjectDataCompression;
+namespace ProjectDataCompression.Models;
 
 partial class DataCompressionForm
 {
