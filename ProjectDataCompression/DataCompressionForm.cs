@@ -191,9 +191,9 @@ public partial class DataCompressionForm : Form
 
     private async void btnDecompress_Click(object sender, EventArgs e)
     {
-        if (_selectedFiles.Length == 0)
+        if (_selectedFiles.Length != 1 || !_selectedFiles[0].EndsWith($".{ArchiveCompressor.CompressedFileExt}"))
         {
-            MessageBox.Show("Please select a compressed file to decompress.", "No File Selected", MessageBoxButtons.OK,
+            MessageBox.Show("Please select an archive file.", "No Archive Selected", MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
         }
@@ -204,9 +204,9 @@ public partial class DataCompressionForm : Form
             _listBoxResults.Items.Clear();
 
             var inputFile = _selectedFiles[0];
-            
+
             await new ArchiveCompressor().ExtractAllFilesAsync(inputFile);
-            
+
             SystemSounds.Asterisk.Play();
         }
         catch (Exception ex)
@@ -221,7 +221,7 @@ public partial class DataCompressionForm : Form
 
     private async void btnExtractSingle_Click(object sender, EventArgs e)
     {
-        if (_selectedFiles.Length == 0)
+        if (_selectedFiles.Length != 1 || !_selectedFiles[0].EndsWith($".{ArchiveCompressor.CompressedFileExt}"))
         {
             MessageBox.Show("Please select an archive file.", "No Archive Selected", MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
@@ -296,7 +296,8 @@ public partial class DataCompressionForm : Form
                     _listBoxArchiveFiles.Items.Add($"📄 {file.FileName}");
                     _listBoxArchiveFiles.Items.Add(
                         $"   Size: {FormatBytes(file.OriginalSize)} → {FormatBytes(file.CompressedSize)}");
-                    _listBoxArchiveFiles.Items.Add($"   Ratio: {(file.CompressedSize * 100.0 / file.OriginalSize):F1}%");
+                    _listBoxArchiveFiles.Items.Add(
+                        $"   Ratio: {(file.CompressedSize * 100.0 / file.OriginalSize):F1}%");
                     _listBoxArchiveFiles.Items.Add("");
                 }
             }
