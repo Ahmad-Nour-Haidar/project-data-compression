@@ -270,7 +270,6 @@ public class ArchiveCompressor
     {
         writer.Write(metadata.Algorithm);
         writer.Write(metadata.PasswordHash);
-        writer.Write(metadata.CreatedAt.ToBinary());
         writer.Write(metadata.Entries.Count);
 
         foreach (var entry in metadata.Entries)
@@ -297,7 +296,6 @@ public class ArchiveCompressor
         {
             Algorithm = reader.ReadString(),
             PasswordHash = reader.ReadString(),
-            CreatedAt = DateTime.FromBinary(reader.ReadInt64())
         };
 
         int entryCount = reader.ReadInt32();
