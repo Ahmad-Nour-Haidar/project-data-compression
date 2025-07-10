@@ -91,7 +91,8 @@ public partial class DataCompressionForm : Form
     private void btnSelectMultipleFiles_Click(object sender, EventArgs e)
     {
         OpenFileDialog ofd = new OpenFileDialog();
-        ofd.Filter = "All Files (*.*)|*.*";
+        ofd.Filter =
+            "Common Files|*.txt;*.docx;*.pdf;*.png;*.jpg;*.jpeg;*.bmp;*.mp3;*.mp4;*.avi;*.csv;*.xlsx;*.json;*.xml|All Files (*.*)|*.*";
         ofd.Multiselect = true;
 
         if (ofd.ShowDialog() == DialogResult.OK)
